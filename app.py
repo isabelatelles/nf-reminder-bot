@@ -84,7 +84,7 @@ def update_message(request, payload):
     ts=timestamp,
     text="Deu certo",
     blocks=None)
-  return
+  return ""
 
 def schedule_message(message):
   now = datetime.datetime.now()
@@ -97,11 +97,11 @@ def schedule_message(message):
 
 def post_message(message):
   for id in user_ids:
-      response = client.chat_postMessage(
-        channel=id,
-        blocks=block_message,
-        text=message)
-      timestamps.append(response['ts'])
+    response = client.chat_postMessage(
+      channel=id,
+      blocks=block_message,
+      text=message)
+    timestamps.append(response['ts'])
 
 def send_message(message, schedule=False):
   try:
