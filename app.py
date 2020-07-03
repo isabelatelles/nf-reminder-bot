@@ -1,7 +1,6 @@
 import os
 import datetime
 import hmac, hashlib
-import logging
 import os
 from slack import WebClient
 from slack.errors import SlackApiError
@@ -27,43 +26,8 @@ def verify(request, secret):
 
 # Initialize a Web API client
 client = WebClient(token=BOT_TOKEN)
-
-block_message = [
-  {
-    "type": "section",
-    "text": {
-      "type": "plain_text",
-      "text": "Envie a nota fiscal :rainbow:",
-      "emoji": True
-    }
-  },
-  {
-    "type": "section",
-    "text": {
-      "type": "mrkdwn",
-      "text": "<https://google.com|Prefeitura de Campinas - emissão>"
-    }
-  },
-  {
-    "type": "actions",
-    "elements": [
-      {
-        "type": "button",
-        "text": {
-          "type": "plain_text",
-          "text": "Enviado",
-          "emoji": True
-        },
-        "style": "primary",
-        "value": "done_button",
-        "action_id": "button"
-      }
-    ]
-  }
-]
-
-user_ids = []
-timestamps = []
+with open("user_ids.txt") as f:
+  user_ids = f.read().split(',')
 
 @app.route("/slack/events", methods=["POST"])
 def handle_event():
@@ -71,6 +35,7 @@ def handle_event():
   verify(request, SIGNING_SECRET)
   payload = json.loads(request.form["payload"])
   event_type = payload["type"]
+  print(event_type)
   if event_type == 'block_actions':
     return update_message(request, payload)
   else:
@@ -84,40 +49,10 @@ def update_message(request, payload):
     ts=timestamp,
     text="Deu certo",
     blocks=None)
+  user_ids.remove(payload["user"]["id"])
+  with open("user_ids.txt", "w") as f:
+    f.write(','.join(user_ids))
   return ""
 
-def schedule_message(message):
-  now = datetime.datetime.now()
-  for id in user_ids:
-    response = client.chat_scheduleMessage(
-      channel=id,
-      blocks=block_message,
-      text=message,
-      post_at=(now + datetime.timedelta(minutes=2)).timestamp())
-
-def post_message(message):
-  for id in user_ids:
-    response = client.chat_postMessage(
-      channel=id,
-      blocks=block_message,
-      text=message)
-    timestamps.append(response['ts'])
-
-def send_message(message, schedule=False):
-  try:
-    if schedule:
-      schedule_message(message)
-    else:
-      post_message(message)
-  except SlackApiError as e:
-    # You will get a SlackApiError if "ok" is False
-    assert e.response["ok"] is False
-    assert e.response["error"]  # str like 'invalid_auth', 'channel_not_found'
-    print(f"Got an error: {e.response['error']}")
-
 if __name__ == "__main__":
-  logger = logging.getLogger()
-  logger.setLevel(logging.DEBUG)
-  logger.addHandler(logging.StreamHandler())
-  send_message("Envie a nota fiscal!")
   app.run(port=8080)
